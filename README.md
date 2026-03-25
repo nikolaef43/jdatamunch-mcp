@@ -53,9 +53,9 @@ Index once. Query cheaply. Keep moving.
 >
 > **jDataMunch-only licenses**
 >
-> * [Builder — $79](https://j.gravelle.us/jDataMunch/descriptions.php#builder) — 1 developer
-> * [Studio — $349](https://j.gravelle.us/jDataMunch/descriptions.php#studio) — up to 5 developers
-> * [Platform — $1,999](https://j.gravelle.us/jDataMunch/descriptions.php#platform) — org-wide internal deployment
+> * [Builder — $39](https://j.gravelle.us/jDataMunch/descriptions.php#builder) — 1 developer
+> * [Studio — $149](https://j.gravelle.us/jDataMunch/descriptions.php#studio) — up to 5 developers
+> * [Platform — $799](https://j.gravelle.us/jDataMunch/descriptions.php#platform) — org-wide internal deployment
 >
 > **Want the full jMunch suite?**
 >
