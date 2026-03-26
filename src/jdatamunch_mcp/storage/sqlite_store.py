@@ -21,7 +21,7 @@ _TYPE_AFFINITY = {
     "string": "TEXT",
 }
 
-BATCH_SIZE = 10_000
+BATCH_SIZE = 50_000   # larger batches = fewer commits
 MAX_ROWS_RETURNED = 500
 
 
@@ -73,43 +73,140 @@ def create_table(
         conn.commit()
 
 
+def _make_col_converter(col_type: str):
+    """Return a fast single-argument converter for a given column type.
+
+    Pre-building one closure per column eliminates the string comparison
+    inside _convert_value on every row (28M calls for a 1M-row, 28-col file).
+    """
+    null_values = _NULL_VALUES
+    if col_type == "integer":
+        def _conv(v: str) -> Any:
+            s = v.strip() if v else ""
+            if s in null_values:
+                return None
+            try:
+                return int(s)
+            except ValueError:
+                try:
+                    return int(float(s))
+                except ValueError:
+                    return s or None
+    elif col_type == "float":
+        def _conv(v: str) -> Any:
+            s = v.strip() if v else ""
+            if s in null_values:
+                return None
+            try:
+                return float(s)
+            except ValueError:
+                return s or None
+    else:  # datetime / string — store as text
+        def _conv(v: str) -> Any:
+            s = v.strip() if v else ""
+            return s if s not in null_values else None
+    return _conv
+
+
+class BulkInserter:
+    """Context manager for high-throughput row insertion.
+
+    Keeps a single SQLite connection open across all batches, using
+    aggressive PRAGMAs safe for a full rebuild (synchronous=OFF is fine
+    because a failed index is simply discarded and rebuilt on next run).
+    Uses pre-compiled per-column converters to avoid repeated type dispatch.
+    """
+
+    def __init__(
+        self,
+        sqlite_path: Path,
+        column_names: list,
+        column_types: list,
+        batch_size: int = BATCH_SIZE,
+    ) -> None:
+        self.sqlite_path = sqlite_path
+        self.batch_size = batch_size
+        self.n_cols = len(column_names)
+        self._batch: list = []
+        self._conn: Optional[sqlite3.Connection] = None
+        # Pre-compile one converter per column
+        self._converters = [_make_col_converter(ct) for ct in column_types]
+
+        placeholders = ", ".join("?" * self.n_cols)
+        col_list = ", ".join(_qcol(n) for n in column_names)
+        self._sql = f"INSERT INTO rows ({col_list}) VALUES ({placeholders})"
+
+    def __enter__(self) -> "BulkInserter":
+        self._conn = sqlite3.connect(str(self.sqlite_path))
+        # Speed-optimised PRAGMAs for bulk load. WAL is kept (set by create_table);
+        # synchronous=OFF is safe here because a failed index is just rebuilt.
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA synchronous=OFF")
+        self._conn.execute("PRAGMA cache_size=-131072")   # 128 MB page cache
+        self._conn.execute("PRAGMA temp_store=MEMORY")
+        return self
+
+    def _convert_row(self, row: list) -> tuple:
+        convs = self._converters
+        n = self.n_cols
+        return tuple(convs[i](row[i] if i < len(row) else "") for i in range(n))
+
+    def add(self, row: list) -> None:
+        self._batch.append(row)
+        if len(self._batch) >= self.batch_size:
+            self._flush()
+
+    def _flush(self) -> None:
+        if self._batch and self._conn:
+            self._conn.executemany(self._sql, (self._convert_row(r) for r in self._batch))
+            self._batch = []
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._conn:
+            self._flush()
+            if exc_type is None:
+                self._conn.commit()
+            self._conn.close()
+            self._conn = None
+        return False
+
+
 def insert_batch(
     sqlite_path: Path,
     batch: list,            # list of raw string lists
     column_names: list,     # list[str]
     column_types: list,     # list[str]
 ) -> None:
-    """Insert a batch of rows into the rows table."""
+    """Insert a batch of rows into the rows table (single-connection convenience wrapper)."""
     if not batch:
         return
-
-    placeholders = ", ".join("?" * len(column_names))
-    col_list = ", ".join(_qcol(n) for n in column_names)
-    sql = f"INSERT INTO rows ({col_list}) VALUES ({placeholders})"
-
-    n_cols = len(column_names)
-
-    def _convert_row(row: list) -> tuple:
-        return tuple(
-            _convert_value(row[i] if i < len(row) else "", column_types[i])
-            for i in range(n_cols)
-        )
-
-    with sqlite3.connect(str(sqlite_path)) as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.executemany(sql, (_convert_row(r) for r in batch))
-        conn.commit()
+    with BulkInserter(sqlite_path, column_names, column_types) as bi:
+        for row in batch:
+            bi.add(row)
 
 
 def create_indexes(
     sqlite_path: Path,
     profiles: list,  # list[ColumnProfile]
-    cardinality_threshold: int = 1000,
+    cardinality_threshold: int = 50,
 ) -> None:
-    """Create SQLite indexes on low-cardinality columns for fast filtering."""
+    """Create SQLite indexes on low-cardinality columns for fast filtering.
+
+    Threshold of 50 keeps only truly categorical columns (sex, status, area, etc.)
+    and avoids spending 2-3s per index on higher-cardinality columns that are
+    rarely used as primary filter keys. Users who need indexes on higher-cardinality
+    columns can add them via direct SQLite access.
+    """
     with sqlite3.connect(str(sqlite_path)) as conn:
+        conn.execute("PRAGMA synchronous=OFF")
+        conn.execute("PRAGMA cache_size=-131072")
+        conn.execute("PRAGMA temp_store=MEMORY")
         for p in profiles:
-            if p.cardinality <= cardinality_threshold and not p.is_unique:
+            if (
+                p.cardinality <= cardinality_threshold
+                and not p.is_unique
+                and p.null_pct < 99.0   # skip columns that are almost entirely null
+            ):
                 idx_name = "idx_" + p.name.replace(" ", "_").replace("/", "_")[:50]
                 try:
                     conn.execute(

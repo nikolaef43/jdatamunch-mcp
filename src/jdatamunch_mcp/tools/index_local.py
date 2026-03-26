@@ -8,7 +8,7 @@ from ..config import get_index_path, get_max_rows
 from ..parser import parse_file
 from ..profiler.column_profiler import _ColAcc, update_acc, finalize_profile, infer_types_from_sample, _TYPE_FROM_RANK
 from ..storage.data_store import DataStore
-from ..storage.sqlite_store import create_table, insert_batch, create_indexes, BATCH_SIZE
+from ..storage.sqlite_store import create_table, BulkInserter, create_indexes, BATCH_SIZE
 from ..storage.token_tracker import record_savings, estimate_savings
 
 _TYPE_SAMPLE_ROWS = 10_000  # rows used for preliminary type detection
@@ -109,38 +109,25 @@ def index_local(
 
     # --- Phase 3: Full single pass — profile + load SQLite ---
     row_count = 0
-    batch: list = []
 
-    # Process sample rows first (they were already profiled in sample pass)
-    # but still need inserting into SQLite
-    for row in sample_rows:
-        row_count += 1
-        batch.append(row)
-        if row_count >= max_rows:
-            break
-        if len(batch) >= BATCH_SIZE:
-            insert_batch(sqlite_path, batch, column_names, preliminary_types)
-            batch = []
-
-    # Continue with remaining rows (not in sample)
-    if row_count < max_rows:
-        for row in row_iter:
+    with BulkInserter(sqlite_path, column_names, preliminary_types) as inserter:
+        # Sample rows were already profiled during type inference; just insert them.
+        for row in sample_rows:
             row_count += 1
-            # Update profiling accumulators
-            for i, acc in enumerate(accs):
-                raw = row[i] if i < len(row) else ""
-                update_acc(acc, raw)
-
-            batch.append(row)
+            inserter.add(row)
             if row_count >= max_rows:
                 break
-            if len(batch) >= BATCH_SIZE:
-                insert_batch(sqlite_path, batch, column_names, preliminary_types)
-                batch = []
 
-    # Flush remaining batch
-    if batch:
-        insert_batch(sqlite_path, batch, column_names, preliminary_types)
+        # Continue with remaining rows: profile + insert in one pass.
+        if row_count < max_rows:
+            for row in row_iter:
+                row_count += 1
+                # zip is C-level iteration; avoids index arithmetic vs enumerate
+                for acc, raw in zip(accs, row):
+                    update_acc(acc, raw)
+                inserter.add(row)
+                if row_count >= max_rows:
+                    break
 
     # --- Phase 4: Finalize profiles ---
     profiles = [finalize_profile(acc) for acc in accs]
