@@ -5,7 +5,7 @@
 
 ---
 
-## Cut spreadsheet token usage by **99% or more**
+## Cut spreadsheet token usage by **99.997%**
 
 Most AI agents explore tabular data the expensive way:
 
@@ -14,12 +14,16 @@ dump the whole file into the prompt → skim a million irrelevant rows → repea
 That is not "a little inefficient."
 That is a **token incinerator**.
 
-A 244 MB CSV file with 1 million rows costs roughly **61 million tokens** if you paste it raw.
-The agent's actual question needed maybe 500 of them.
+A 255 MB CSV file with 1 million rows costs **111 million tokens** if you paste it raw.
+A single `describe_dataset` call answers the same orientation question in **3,849 tokens**.
+
+That is a **25,333× reduction** — measured, not estimated, on a real 1M-row public dataset.
 
 **jDataMunch indexes the file once and lets agents retrieve only the exact data they need**: column profiles, filtered rows, and server-side aggregations — with SQL precision.
 
-In retrieval-heavy workflows, that routinely cuts data-reading token usage by **99%+** because the agent stops brute-loading giant files just to answer one narrow question.
+> **Benchmark:** LAPD crime records — 1,004,894 rows, 28 columns, 255 MB
+> Baseline (raw file): 111,028,360 tokens &nbsp;|&nbsp; jDataMunch: ~3,849 tokens &nbsp;|&nbsp; **25,333× reduction**
+> [Methodology & harness](benchmarks/METHODOLOGY.md) · [Full results](benchmarks/results.md)
 
 | Task | Traditional approach | With jDataMunch |
 |------|----------------------|-----------------|
@@ -71,7 +75,7 @@ Instead of forcing an agent to load an entire CSV, scan millions of rows, and bu
 
 That means:
 
-* **99%+ lower data-reading token usage** in retrieval-heavy workflows
+* **25,333× lower data-reading token usage** on a 1M-row CSV (measured)
 * **less irrelevant context** polluting the prompt
 * **faster dataset orientation** — one call tells you everything about the schema
 * **accurate filtered queries** — the agent asks for Hollywood assaults, it gets Hollywood assaults
@@ -155,9 +159,10 @@ search_data       →  scans column profiles in memory (< 50ms)
 
 **No raw file is ever re-read after the initial index.** The SQLite database serves all row-level queries.
 
-For a 244 MB, 1-million-row CSV:
-* Index time: ~30–60 seconds (one-time)
-* `describe_dataset`: < 10 ms, ~500 KB response vs 244 MB source
+For a 255 MB, 1,004,894-row CSV (measured on real data):
+* Index time: ~43 seconds (one-time)
+* `describe_dataset`: 35 ms, **3,849 tokens** vs 111,028,360 tokens raw — **25,333×**
+* `describe_column` (single column deep-dive): 22–33 ms, ~600 tokens
 * `get_rows` (indexed filter): < 100 ms
 * Peak indexing memory: < 500 MB
 
@@ -278,9 +283,10 @@ Multiple filters are ANDed. No raw SQL accepted — injection surface is zero.
 
 ## When does it help?
 
-| Scenario | Without jDataMunch | With jDataMunch | Savings |
+| Scenario | Without jDataMunch | With jDataMunch | Measured savings |
 |----------|--------------------|-----------------|---------|
-| Orient on a 244 MB CSV | Paste raw file → 61M tokens | `describe_dataset` → ~1K tokens | ~99.99% |
+| Orient on a 255 MB CSV | Paste raw file → **111M tokens** | `describe_dataset` → **3,849 tokens** | **25,333×** |
+| Schema + column deep-dive | Same 111M tokens | `describe_dataset` + `describe_column` → **~4,400 tokens** | **~25,000×** |
 | Find the crime-type column | Scan headers manually | `search_data("crime type")` → column ID | structural |
 | Get Hollywood assault rows | Load all 1M rows | `get_rows` with 2 filters → matching rows only | ~99%+ |
 | Crime count by area | Return all rows, aggregate in LLM | `aggregate(group_by=["AREA NAME"])` → 21 rows | ~99.9% |
@@ -331,7 +337,7 @@ All three implement [jMRI](https://github.com/jgravelle/mcp-retrieval-spec) — 
 
 Index a file, run `describe_dataset`, and look at what comes back.
 
-That single call — a few milliseconds, a few hundred tokens — tells you everything that would have cost you 60 million tokens to read raw.
+That single call — 35 milliseconds, 3,849 tokens — tells you everything that would have cost you 111 million tokens to read raw.
 
 That's the whole idea...
  <picture>
