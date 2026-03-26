@@ -14,14 +14,16 @@
 | File size | **255.5 MB** |
 | Baseline tokens (full file) | **111,028,360** |
 
-| Task | Baseline&nbsp;tokens | jDataMunch&nbsp;tokens | Reduction | Ratio |
-|------|---------------------:|-----------------------:|----------:|------:|
-| `schema overview` | 111,028,360 | 3,849 | **100.0%** | 28846.0x |
-| `crime type distribution` | 111,028,360 | 4,630 | **100.0%** | 23980.2x |
-| `temporal range` | 111,028,360 | 4,736 | **100.0%** | 23443.5x |
-| `victim demographics` | 111,028,360 | 4,442 | **100.0%** | 24995.1x |
-| `geographic coverage` | 111,028,360 | 4,371 | **100.0%** | 25401.1x |
-| **Average** | — | — | **100.0%** | **25333.2x** |
+| Task | Baseline&nbsp;tokens | jDataMunch&nbsp;tokens | Reduction | Ratio | Baseline&nbsp;cost | jDataMunch&nbsp;cost | Saved |
+|------|---------------------:|-----------------------:|----------:|------:|-----------------:|-------------------:|------:|
+| `schema overview` | 111,028,360 | 3,849 | **100.0%** | 28846.0x | $0.5551 | $0.0000192 | **$0.5551** |
+| `crime type distribution` | 111,028,360 | 4,630 | **100.0%** | 23980.2x | $0.5551 | $0.0000232 | **$0.5551** |
+| `temporal range` | 111,028,360 | 4,736 | **100.0%** | 23443.5x | $0.5551 | $0.0000237 | **$0.5551** |
+| `victim demographics` | 111,028,360 | 4,442 | **100.0%** | 24995.1x | $0.5551 | $0.0000222 | **$0.5551** |
+| `geographic coverage` | 111,028,360 | 4,371 | **100.0%** | 25401.1x | $0.5551 | $0.0000219 | **$0.5551** |
+| **Average** | — | — | **100.0%** | **25333.2x** | **$0.5551** | **$0.0000220** | **$0.5551** |
+
+> Costs at $5.00 / 1M tokens (input token rate). jDataMunch cost is effectively $0 at this scale.
 
 <details><summary>Token breakdown by tool call + latency</summary>
 
@@ -39,11 +41,12 @@
 
 ## Grand Summary
 
-| | Tokens |
-|--|-------:|
-| Baseline total (5 task-runs) | 555,141,800 |
-| jDataMunch total | 22,028 |
-| **Reduction** | **100.0%** |
-| **Ratio** | **25201.6x** |
+| | Tokens | Cost @ $5/M tokens |
+|--|-------:|-------------------:|
+| Baseline total (5 task-runs) | 555,141,800 | $2.7757 |
+| jDataMunch total | 22,028 | $0.0001 |
+| **Savings** | **555,119,772** | **$2.7756** |
+| **Reduction** | **100.0%** | **100.0%** |
+| **Ratio** | **25201.6x** | **25201.6x** |
 
-> Measured with tiktoken `cl100k_base`. Baseline = full raw file tokenized. jDataMunch = describe_dataset + describe_column per task. AI summaries disabled.
+> Measured with tiktoken `cl100k_base`. Baseline = full raw file tokenized. jDataMunch = describe_dataset + describe_column per task. AI summaries disabled. Costs at $5.00 / 1M input tokens.
