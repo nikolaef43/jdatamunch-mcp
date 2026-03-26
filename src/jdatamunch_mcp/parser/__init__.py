@@ -24,9 +24,9 @@ def parse_file(
         try:
             from .excel_parser import parse_excel
             return parse_excel(path, sheet=sheet, header_row=header_row)
-        except ImportError:
+        except ImportError as e:
             raise ValueError(
-                "Excel support requires openpyxl: pip install 'jdatamunch-mcp[excel]'"
+                f"Excel support requires openpyxl and xlrd: pip install 'jdatamunch-mcp[excel]' ({e})"
             )
     else:
         raise ValueError(

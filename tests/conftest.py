@@ -7,6 +7,18 @@ from pathlib import Path
 
 import pytest
 
+try:
+    import openpyxl
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
+
+try:
+    import xlrd  # noqa: F401
+    HAS_XLRD = True
+except ImportError:
+    HAS_XLRD = False
+
 
 @pytest.fixture
 def tmp_dir(tmp_path):
@@ -58,6 +70,58 @@ def sample_csv_with_nulls(tmp_path):
             [4, "NULL", "C"],
             [5, "200", "B"],
         ])
+    return str(path)
+
+
+_SAMPLE_ROWS = [
+    [1, "Alice", 30, "Hollywood", 9.5],
+    [2, "Bob", 25, "Central", 7.2],
+    [3, "Charlie", 35, "Hollywood", 8.8],
+    [4, "Diana", 28, "Pacific", 6.1],
+    [5, "Eve", 32, "Hollywood", 9.0],
+    [6, "Frank", None, "Central", None],
+    [7, "Grace", 27, "Pacific", 8.3],
+    [8, "Henry", 45, "N Hollywood", 7.9],
+    [9, "Iris", 22, "Hollywood", 9.2],
+    [10, "Jack", 38, "Central", 5.5],
+]
+_SAMPLE_HEADER = ["id", "name", "age", "city", "score"]
+
+
+@pytest.fixture
+def sample_xlsx(tmp_path):
+    """Small .xlsx file matching sample_csv schema."""
+    pytest.importorskip("openpyxl")
+    import openpyxl
+    path = tmp_path / "sample.xlsx"
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "data"
+    ws.append(_SAMPLE_HEADER)
+    for row in _SAMPLE_ROWS:
+        ws.append(row)
+    wb.save(str(path))
+    return str(path)
+
+
+@pytest.fixture
+def sample_xls(tmp_path):
+    """Small .xls file matching sample_csv schema."""
+    pytest.importorskip("xlrd")
+    try:
+        import xlwt
+    except ImportError:
+        pytest.skip("xlwt required to create .xls fixtures (pip install xlwt)")
+    path = tmp_path / "sample.xls"
+    wb = xlwt.Workbook()
+    ws = wb.add_sheet("data")
+    for col, name in enumerate(_SAMPLE_HEADER):
+        ws.write(0, col, name)
+    for row_idx, row in enumerate(_SAMPLE_ROWS, start=1):
+        for col_idx, val in enumerate(row):
+            if val is not None:
+                ws.write(row_idx, col_idx, val)
+    wb.save(str(path))
     return str(path)
 
 
