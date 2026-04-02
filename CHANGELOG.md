@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0] — 2026-04-01
+
+### New tools
+
+- **`get_schema_drift(dataset_a, dataset_b)`** — compare schema metadata between two indexed datasets: detects added/removed columns, type changes, and null-rate shifts (≥1% delta). Assessment: `identical` | `additive` | `breaking`. Pure in-memory comparison of indexed profiles — no re-reading source files.
+- **`get_data_hotspots(dataset, top_n=10)`** — rank columns by composite data-quality risk combining null rate, cardinality anomalies, and numeric outlier spread (coefficient of variation). Per-column `assessment: low|medium|high`. Top-N capped at 50. Analogous to jcodemunch's `get_hotspots`.
+
+### Tests
+
+- 23 new tests (91 total, 1 skipped for optional deps)
+
 ## [0.2.1] — 2026-03-31
 
 ### Housekeeping

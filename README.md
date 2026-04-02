@@ -238,6 +238,8 @@ Use aggregate for any group-by or summary questions.
 | `get_rows` | Filtered row retrieval with 10 operators. Parameterized SQL. 500-row hard cap. |
 | `aggregate` | Server-side GROUP BY: count, sum, avg, min, max, count_distinct, median. |
 | `sample_rows` | Head, tail, or random sample. Good for first-look at an unfamiliar dataset. |
+| `get_schema_drift` | Compare schema (columns, types, nullability) between two indexed datasets. Detects breaking vs additive changes. |
+| `get_data_hotspots` | Rank columns by data-quality risk: null rate, cardinality anomalies, numeric outlier spread. First-look triage. |
 | `get_session_stats` | Cumulative token savings and cost avoided across the session. |
 
 ---

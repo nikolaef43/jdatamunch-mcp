@@ -20,6 +20,8 @@ from .tools.get_rows import get_rows
 from .tools.aggregate import aggregate
 from .tools.sample_rows import sample_rows
 from .tools.get_session_stats import get_session_stats
+from .tools.get_schema_drift import get_schema_drift
+from .tools.get_data_hotspots import get_data_hotspots
 from .budget import enforce_budget
 from .call_tracker import record_call
 
@@ -308,6 +310,54 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="get_schema_drift",
+            description=(
+                "Compare schema (columns, types, nullability) between two indexed datasets. "
+                "Detects added/removed columns, type changes, and null-rate shifts. "
+                "Pure in-memory comparison — no re-reading source files. "
+                "Useful for detecting schema changes between dataset versions. "
+                "Assessment: 'identical' | 'additive' (only additions) | 'breaking' (removals or type changes)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset_a": {
+                        "type": "string",
+                        "description": "First dataset identifier (baseline)",
+                    },
+                    "dataset_b": {
+                        "type": "string",
+                        "description": "Second dataset identifier (comparison target)",
+                    },
+                },
+                "required": ["dataset_a", "dataset_b"],
+            },
+        ),
+        Tool(
+            name="get_data_hotspots",
+            description=(
+                "Return the highest-risk columns in a dataset ranked by a composite score "
+                "combining: null rate, cardinality anomalies, and numeric outlier spread. "
+                "Use this as a first-look triage — analogous to jcodemunch's get_hotspots. "
+                "top_n capped at 50. Assessment per column: 'low' | 'medium' | 'high'."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset": {
+                        "type": "string",
+                        "description": "Dataset identifier",
+                    },
+                    "top_n": {
+                        "type": "integer",
+                        "description": "Number of hotspot columns to return (default 10, max 50)",
+                        "default": 10,
+                    },
+                },
+                "required": ["dataset"],
+            },
+        ),
+        Tool(
             name="get_session_stats",
             description="Return cumulative token savings and cost avoided across all tool calls.",
             inputSchema={"type": "object", "properties": {}},
@@ -418,6 +468,18 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name == "get_session_stats":
             result = get_session_stats(storage_path=storage_path)
+        elif name == "get_schema_drift":
+            result = get_schema_drift(
+                dataset_a=arguments["dataset_a"],
+                dataset_b=arguments["dataset_b"],
+                storage_path=storage_path,
+            )
+        elif name == "get_data_hotspots":
+            result = get_data_hotspots(
+                dataset=arguments["dataset"],
+                top_n=arguments.get("top_n", 10),
+                storage_path=storage_path,
+            )
         else:
             result = {"error": f"Unknown tool: {name}"}
 
