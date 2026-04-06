@@ -184,24 +184,56 @@ pip install "jdatamunch-mcp[excel]"
 
 ### 2. Add it to your MCP client
 
-If you're using Claude Code:
+#### Claude Code (one command)
 
 ```bash
 claude mcp add jdatamunch uvx jdatamunch-mcp
 ```
 
-Or add manually to your `~/.claude.json`:
+Restart Claude Code. Confirm with `/mcp`.
+
+#### Claude Desktop
+
+Add to your config file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
 
 ```json
 {
   "mcpServers": {
-    "jdatamunch-mcp": {
+    "jdatamunch": {
       "command": "uvx",
       "args": ["jdatamunch-mcp"]
     }
   }
 }
 ```
+
+#### OpenClaw
+
+**Option A — CLI:**
+
+```bash
+openclaw mcp set jdatamunch '{"command":"uvx","args":["jdatamunch-mcp"]}'
+```
+
+**Option B — Edit `~/.openclaw/openclaw.json`:**
+
+```json
+{
+  "mcpServers": {
+    "jdatamunch": {
+      "command": "uvx",
+      "args": ["jdatamunch-mcp"],
+      "transport": "stdio"
+    }
+  }
+}
+```
+
+Restart the gateway: `openclaw gateway restart`. Verify: `openclaw mcp list`.
+
+#### Other clients (Cursor, Windsurf, Roo, etc.)
+
+Any MCP-compatible client accepts the same JSON block in its MCP config file.
 
 ### 3. Index a file and start querying
 
@@ -215,14 +247,39 @@ get_rows(dataset="my-dataset", filters=[{"column": "City", "op": "eq", "value": 
 
 Installing jDataMunch makes the tools available. It does **not** guarantee the agent will stop pasting entire CSVs into prompts unless you tell it to use structured retrieval first.
 
-A simple instruction like this helps:
+#### Claude Code / Claude Desktop
+
+Add this to your `CLAUDE.md` (global or project-level):
 
 ```markdown
+## Data Exploration Policy
 Use jdatamunch-mcp for tabular data whenever available.
 Always call describe_dataset first to understand the schema.
 Use get_rows with filters rather than loading raw files.
 Use aggregate for any group-by or summary questions.
 ```
+
+#### OpenClaw
+
+Add the same policy to your agent's system prompt file (e.g. `~/.openclaw/agents/analyst.md`), then reference it in `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "agents": {
+    "named": {
+      "analyst": {
+        "systemPromptFile": "~/.openclaw/agents/analyst.md"
+      }
+    }
+  }
+}
+```
+
+### Check your token savings
+
+Ask your agent: *"How many tokens has jDataMunch saved me?"*
+
+The agent will call `get_session_stats`, which returns session and lifetime token savings with per-model cost breakdowns. Lifetime stats persist to `~/.data-index/session_stats.json` across sessions.
 
 ---
 
