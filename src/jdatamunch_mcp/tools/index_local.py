@@ -10,6 +10,7 @@ from ..profiler.column_profiler import _ColAcc, update_acc, finalize_profile, in
 from ..storage.data_store import DataStore
 from ..storage.sqlite_store import create_table, BulkInserter, create_indexes, BATCH_SIZE
 from ..storage.token_tracker import record_savings, estimate_savings
+from ..summarizer import summarize_dataset, summarize_column
 
 _TYPE_SAMPLE_ROWS = 10_000  # rows used for preliminary type detection
 
@@ -135,7 +136,22 @@ def index_local(
     # --- Phase 5: Create SQLite indexes on low-cardinality columns ---
     create_indexes(sqlite_path, profiles)
 
-    # --- Phase 6: Save index.json ---
+    # --- Phase 6: Generate summaries ---
+    from ..storage.data_store import _profile_to_dict
+    col_dicts = [_profile_to_dict(prof) for prof in profiles]
+    for prof, col_dict in zip(profiles, col_dicts):
+        prof.ai_summary = summarize_column(col_dict)
+
+    ds_summary = summarize_dataset(
+        dataset_id=dataset_id,
+        columns=col_dicts,
+        row_count=row_count,
+        source_format=source_format,
+        source_size_bytes=meta.get("file_size", 0),
+        source_path=str(p.resolve()),
+    )
+
+    # --- Phase 7: Save index.json ---
     idx = store.save(
         dataset_id=dataset_id,
         profiles=profiles,
@@ -144,7 +160,7 @@ def index_local(
         row_count=row_count,
         encoding=meta.get("encoding", "utf-8"),
         delimiter=meta.get("delimiter", ","),
-        dataset_summary=None,  # v1.1: AI summaries
+        dataset_summary=ds_summary,
     )
 
     duration_s = time.time() - t0

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0] — 2026-04-08
+
+### New features
+
+- **Natural-language summaries** — every `index_local` call now auto-generates a dataset-level summary and per-column summaries from profiled statistics. Summaries describe data shape, types, ranges, cardinality, quality issues, and temporal spans — no external API calls needed.
+- **`summarize_dataset(dataset)` tool** — regenerate summaries for an already-indexed dataset without re-parsing the source file. Useful after schema or profile changes.
+
+### Improvements
+
+- `describe_dataset` now includes `dataset_summary` and per-column `ai_summary` fields in responses
+- Column summaries surface cardinality labels (unique identifier, categorical, binary, constant, etc.), null-rate warnings, and value previews for low-cardinality columns
+
+### Tests
+
+- 18 new tests (120 total, 10 skipped for optional deps)
+
 ## [0.3.0] — 2026-04-01
 
 ### New tools

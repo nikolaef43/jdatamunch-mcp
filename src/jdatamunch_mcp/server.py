@@ -22,6 +22,7 @@ from .tools.sample_rows import sample_rows
 from .tools.get_session_stats import get_session_stats
 from .tools.get_schema_drift import get_schema_drift
 from .tools.get_data_hotspots import get_data_hotspots
+from .tools.summarize_dataset import summarize_dataset as summarize_dataset_tool
 from .budget import enforce_budget
 from .call_tracker import record_call
 
@@ -358,6 +359,25 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="summarize_dataset",
+            description=(
+                "Generate natural-language summaries for a dataset and all its columns. "
+                "Works on already-indexed datasets — reads profiles from index.json, "
+                "generates summaries, and writes them back. No re-parsing of source files. "
+                "Summaries are also auto-generated during index_local."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset": {
+                        "type": "string",
+                        "description": "Dataset identifier (from list_datasets)",
+                    },
+                },
+                "required": ["dataset"],
+            },
+        ),
+        Tool(
             name="get_session_stats",
             description="Return cumulative token savings and cost avoided across all tool calls.",
             inputSchema={"type": "object", "properties": {}},
@@ -478,6 +498,11 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             result = get_data_hotspots(
                 dataset=arguments["dataset"],
                 top_n=arguments.get("top_n", 10),
+                storage_path=storage_path,
+            )
+        elif name == "summarize_dataset":
+            result = summarize_dataset_tool(
+                dataset=arguments["dataset"],
                 storage_path=storage_path,
             )
         else:
