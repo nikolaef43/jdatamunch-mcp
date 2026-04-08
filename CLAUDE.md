@@ -1,7 +1,7 @@
 # jdatamunch-mcp — Project Brief
 
 ## Current State
-- **Version:** 0.7.1 (published to PyPI)
+- **Version:** 0.8.0 (published to PyPI)
 - **GitHub:** `jgravelle/jdatamunch-mcp`
 - **Python:** >=3.10
 
@@ -11,12 +11,14 @@ src/jdatamunch_mcp/
   server.py                    # MCP tool definitions + call_tool dispatcher
   config.py                    # Index path, max rows env vars
   security.py                  # Path validation
+  embeddings.py                # Provider detection (sentence-transformers/Gemini/OpenAI), embed_texts(), cosine_similarity()
   parser/                      # CSV/Excel file parsing
   profiler/
     column_profiler.py         # Per-column type inference, stats accumulation, finalize_profile()
   storage/
     data_store.py              # DataStore: load/save DatasetIndex (index.json)
     sqlite_store.py            # SQLite backend: create_table, insert_batch, create_indexes
+    embedding_store.py         # ColumnEmbeddingStore: column embedding CRUD in dataset SQLite
     token_tracker.py           # estimate_savings, record_savings, cost_avoided
   tools/
     index_local.py             # Index a local CSV/Excel file (single-pass profiling + SQLite load)
@@ -31,6 +33,7 @@ src/jdatamunch_mcp/
     get_schema_drift.py        # get_schema_drift: compare schema between two datasets (added/removed/type/nullability)
     get_data_hotspots.py       # get_data_hotspots: rank columns by data-quality risk (null, cardinality, outlier)
     delete_dataset.py          # delete_dataset: remove indexed dataset and SQLite store
+    embed_dataset.py           # embed_dataset: precompute column embeddings for semantic search
     get_correlations.py        # get_correlations: pairwise Pearson correlations between numeric columns
     join_datasets.py           # join_datasets: cross-dataset SQL JOIN via ATTACH DATABASE
     summarize_dataset.py       # summarize_dataset: regenerate NL summaries for indexed dataset

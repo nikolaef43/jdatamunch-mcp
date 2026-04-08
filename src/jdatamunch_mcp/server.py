@@ -27,6 +27,7 @@ from .tools.index_repo import index_repo
 from .tools.get_correlations import get_correlations
 from .tools.join_datasets import join_datasets
 from .tools.delete_dataset import delete_dataset
+from .tools.embed_dataset import embed_dataset
 from .budget import enforce_budget
 from .call_tracker import record_call
 
@@ -179,7 +180,8 @@ async def list_tools() -> list[Tool]:
             description=(
                 "Search across column names and values. Returns column-level results with IDs "
                 "— tells you where to look, not the data itself. Use before get_rows or describe_column. "
-                "max_results capped at 50."
+                "max_results capped at 50. Set semantic=true for embedding-based search (requires "
+                "an embedding provider: JDATAMUNCH_EMBED_MODEL, GOOGLE_API_KEY, or OPENAI_API_KEY)."
             ),
             inputSchema={
                 "type": "object",
@@ -199,6 +201,21 @@ async def list_tools() -> list[Tool]:
                         "type": "integer",
                         "description": "Maximum results to return (default 10)",
                         "default": 10,
+                    },
+                    "semantic": {
+                        "type": "boolean",
+                        "description": "Enable semantic search via embeddings (default false). Requires embedding provider.",
+                        "default": False,
+                    },
+                    "semantic_weight": {
+                        "type": "number",
+                        "description": "Weight for semantic score in hybrid ranking. 0.0 = pure keyword, 1.0 = pure semantic (default 0.5).",
+                        "default": 0.5,
+                    },
+                    "semantic_only": {
+                        "type": "boolean",
+                        "description": "Skip keyword scoring entirely; use only embeddings (default false).",
+                        "default": False,
                     },
                 },
                 "required": ["dataset", "query"],
@@ -539,6 +556,30 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="embed_dataset",
+            description=(
+                "Precompute column embeddings for semantic search. Optional warm-up — "
+                "search_data with semantic=true lazily embeds on first use. Running "
+                "embed_dataset upfront eliminates that latency. Requires an embedding "
+                "provider (JDATAMUNCH_EMBED_MODEL, GOOGLE_API_KEY, or OPENAI_API_KEY)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dataset": {
+                        "type": "string",
+                        "description": "Dataset identifier (from list_datasets)",
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "description": "Recompute all embeddings even if cached (default false)",
+                        "default": False,
+                    },
+                },
+                "required": ["dataset"],
+            },
+        ),
+        Tool(
             name="get_session_stats",
             description="Return cumulative token savings and cost avoided across all tool calls.",
             inputSchema={"type": "object", "properties": {}},
@@ -619,6 +660,9 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 query=arguments["query"],
                 search_scope=arguments.get("search_scope", "all"),
                 max_results=arguments.get("max_results", 10),
+                semantic=arguments.get("semantic", False),
+                semantic_weight=arguments.get("semantic_weight", 0.5),
+                semantic_only=arguments.get("semantic_only", False),
                 storage_path=storage_path,
             )
         elif name == "get_rows":
@@ -698,6 +742,13 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 order_dir=arguments.get("order_dir", "asc"),
                 limit=arguments.get("limit", 50),
                 offset=arguments.get("offset", 0),
+                storage_path=storage_path,
+            )
+        elif name == "embed_dataset":
+            result = await asyncio.to_thread(
+                embed_dataset,
+                dataset=arguments["dataset"],
+                force=arguments.get("force", False),
                 storage_path=storage_path,
             )
         elif name == "summarize_dataset":
