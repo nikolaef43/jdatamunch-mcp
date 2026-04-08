@@ -1,7 +1,7 @@
 # jdatamunch-mcp — Project Brief
 
 ## Current State
-- **Version:** 0.8.0 (published to PyPI)
+- **Version:** 0.8.1 (published to PyPI)
 - **GitHub:** `jgravelle/jdatamunch-mcp`
 - **Python:** >=3.10
 
@@ -38,6 +38,7 @@ src/jdatamunch_mcp/
     join_datasets.py           # join_datasets: cross-dataset SQL JOIN via ATTACH DATABASE
     summarize_dataset.py       # summarize_dataset: regenerate NL summaries for indexed dataset
     index_repo.py              # index_repo: index data files from a GitHub repository
+    list_repos.py              # list_repos: list GitHub repositories indexed via index_repo
 ```
 
 ## Architecture Notes

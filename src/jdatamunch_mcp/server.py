@@ -28,6 +28,7 @@ from .tools.get_correlations import get_correlations
 from .tools.join_datasets import join_datasets
 from .tools.delete_dataset import delete_dataset
 from .tools.embed_dataset import embed_dataset
+from .tools.list_repos import list_repos
 from .budget import enforce_budget
 from .call_tracker import record_call
 
@@ -114,6 +115,14 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="list_datasets",
             description="List all indexed datasets with summary statistics.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="list_repos",
+            description=(
+                "List GitHub repositories indexed via index_repo. Shows repo name, "
+                "HEAD SHA, dataset count, total rows, and dataset names for each repo."
+            ),
             inputSchema={"type": "object", "properties": {}},
         ),
         Tool(
@@ -638,6 +647,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )
         elif name == "list_datasets":
             result = list_datasets(storage_path=storage_path)
+        elif name == "list_repos":
+            result = list_repos(storage_path=storage_path)
 
         elif name == "describe_dataset":
             result = describe_dataset(

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.1] — 2026-04-08
+
+### New features
+
+- **`list_repos()` tool** — list GitHub repositories indexed via `index_repo`. Shows repo name, HEAD SHA (truncated to 12 chars), dataset count, total rows, total size, and dataset names for each repo.
+
+### Tests
+
+- 8 new tests (217 total, 10 skipped for optional deps)
+
 ## [0.8.0] — 2026-04-08
 
 ### New features
